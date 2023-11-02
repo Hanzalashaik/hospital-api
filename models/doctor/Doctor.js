@@ -14,10 +14,10 @@ let doctorSchema=new mongoose.Schema({
         required:true
     },
     mobile:{
-        type:Number,
+        type:String,
         required:true
     },
-    fullName:{
+    name:{
         type:String,
         required:true
     },

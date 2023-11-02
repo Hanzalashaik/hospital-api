@@ -1,26 +1,40 @@
 import mongoose from "mongoose"
 
 let adminSchema=new mongoose.Schema({
-    // uId:{
-    //     type:String,
-    //     required:true
-    // },
     email:{
         type:String,
-        required:true
     },
     password:{
         type:String,
-        required:true
     },
-    mobile:{
-        type:Number,
-        required:true
-    },
-    fullName:{
+    phone:{
         type:String,
-        required:true
     },
+    name:{
+        type:String,
+        
+    },
+    adminverified:{
+        email:{
+            type:Boolean,
+            default:false
+        },
+        phone:{
+            type:Boolean,
+            default:false
+        }
+    },
+    adminverifytoken:{
+        email:{
+            type:String
+        },
+        phone:{
+            type:String
+        }
+    }
+},
+{
+    timestamps:true
 })
 
-export default mongoose.model("admin",adminSchema,"admin")
+export default mongoose.model("admins",adminSchema,"admin")

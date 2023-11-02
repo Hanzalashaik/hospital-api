@@ -1,12 +1,11 @@
-import express from "express"
-import patientModel from "../../models/patient/Patient.js"
+import express from "express";
+import patientModel from "../../models/patient/Patient.js";
 
 let router = express.Router();
 
 //Register Patient
 router.post("/register", async (req, res) => {
   try {
-
     let patientData = req.body;
     await patientModel.create(patientData);
     res.status(200).json({ success: true, msg: "Patient Added Sucessfully" });
@@ -31,7 +30,7 @@ router.get("/:id", async (req, res) => {
     let { id } = req.params;
     // console.log(id);
 
-    let getpatientData = await patientModel.findById(id)
+    let getpatientData = await patientModel.findById(id);
     if (!getpatientData) {
       return res.status(404).json({ error: "Patient Not found" });
     }
@@ -44,7 +43,7 @@ router.get("/:id", async (req, res) => {
 //Update Patient by ID
 router.put("/update/:id", async (req, res) => {
   try {
-    let { id } = req.params;    
+    let { id } = req.params;
     let updateData = req.body;
     let getpatientData = await patientModel.findByIdAndUpdate(id, updateData);
 
