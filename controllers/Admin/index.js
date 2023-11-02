@@ -1,10 +1,12 @@
 import express from "express";
 import adminModel from "../../models/admin/Admin.js";
-import bcrpyt from "bcrypt"
-import randomString from "../../utils/randomId.js"
-import jwt from "jsonwebtoken"
-import config from "config"
-import sendSMS from "../../utils/sms.js";
+import bcrpyt from "bcrypt";
+import randomString from "../../utils/randomId.js";
+import jwt from "jsonwebtoken";
+import config from "config";
+// import sendSMS from "../../utils/sms.js";
+import CryptoJS from "crypto-js";
+import authMiddleware from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -21,35 +23,43 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ msg: "Email and Phone already Exist" });
     }
     //hashing password
-    let hashedPassword=await bcrpyt.hash(adminData.password ,10);
-    adminData.password=hashedPassword
+    let hashedPassword = await bcrpyt.hash(adminData.password, 10);
+    adminData.password = hashedPassword;
 
     //admin verificaton
-    adminData.adminverifytoken.email=randomString(10);
-    adminData.adminverifytoken.phone=randomString(10);
+    adminData.adminverifytoken.email = randomString(10);
+    adminData.adminverifytoken.phone = randomString(10);
 
     //admin authorization
-    let emailToken=jwt.sign({email:adminData.adminverifytoken.email},config.get("JWTKEY"),{expiresIn:"60000"});
-    let phoneToken=jwt.sign({phone:adminData.adminverifytoken.phone},config.get("JWTKEY"),{expiresIn:"60000"});
+    let emailToken = jwt.sign(
+      { email: adminData.adminverifytoken.email },
+      config.get("JWTKEY"),
+      { expiresIn: "60000" }
+    );
+    let phoneToken = jwt.sign(
+      { phone: adminData.adminverifytoken.phone },
+      config.get("JWTKEY"),
+      { expiresIn: "60000" }
+    );
 
-    //Send Email for verification 
+    //Send Email for verification
     console.log(`${config.get("URL")}/admin/email/verify/${emailToken}`);
-    
+
     // console.log(adminData.phone);
-    
+
     // Send SMS
-    sendSMS({
-        body: `Hi ${
-          adminData.name
-        }, Please click the given link to verify your phone ${config.get(
-          "URL"
-        )}/admin/phone/verify/${phoneToken}`,
-        phonenumber: adminData.phone,
-    })
-    // console.log(`${config.get("URL")}/admin/phone/verify/${phoneToken}`);
+    // sendSMS({
+    //     body: `Hi ${
+    //       adminData.name
+    //     }, Please click the given link to verify your phone ${config.get(
+    //       "URL"
+    //     )}/admin/phone/verify/${phoneToken}`,
+    //     phonenumber: adminData.phone,
+    // })
+    console.log(`${config.get("URL")}/admin/phone/verify/${phoneToken}`);
 
     await adminData.save();
-    res.status(200).json({ msg: "Admin Added Sucessfully"});
+    res.status(200).json({ msg: "Admin Added Sucessfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Internel Server Error" });
@@ -57,66 +67,104 @@ router.post("/register", async (req, res) => {
 });
 
 //verify Email
-router.get("/email/verify/:token",async(req,res)=>{
+router.get("/email/verify/:token", async (req, res) => {
   try {
-    let token =req.params.token;
-    let verify=jwt.verify(token,config.get("JWTKEY"));
+    let token = req.params.token;
+    let verify = jwt.verify(token, config.get("JWTKEY"));
     // console.log(verify);
-    
-    if(!verify){
+
+    if (!verify) {
       res
         .status(401)
         .json({ sucess: false, msg: "Token Expire , Register Again" });
     }
-    let adminData=await adminModel.findOne({"adminverifytoken.email":verify.email});
+    let adminData = await adminModel.findOne({
+      "adminverifytoken.email": verify.email,
+    });
 
-    if(!adminData){
-      return res.status(200).json({ success: "The Email has been Verified Already." });
+    if (!adminData) {
+      return res
+        .status(200)
+        .json({ success: "The Email has been Verified Already." });
     }
-    res.status(200).json({ success: "The Email has been Verified." })
-    adminData.adminverified.email=true;
-    
-    await adminData.save()
+    res.status(200).json({ success: "The Email has been Verified." });
+    adminData.adminverified.email = true;
+
+    await adminData.save();
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Internel Server Error" });
   }
-})
+});
 
 //verify Phone Number
-router.get("/phone/verify/:token",async(req,res)=>{
+router.get("/phone/verify/:token", async (req, res) => {
   try {
-    let token =req.params.token;
-    let verify=jwt.verify(token,config.get("JWTKEY"));
+    let token = req.params.token;
+    let verify = jwt.verify(token, config.get("JWTKEY"));
     // console.log(verify);
-    
-    if(!verify){
+
+    if (!verify) {
       res
         .status(401)
         .json({ sucess: false, msg: "Token Expire , Register Again" });
     }
-    let adminData=await adminModel.findOne({"adminverifytoken.phone":verify.phone});
+    let adminData = await adminModel.findOne({
+      "adminverifytoken.phone": verify.phone,
+    });
 
-    if(!adminData){
-      return res.status(200).json({ success: "The Phone has been Verified Already." });
+    if (!adminData) {
+      return res
+        .status(200)
+        .json({ success: "The Phone has been Verified Already." });
     }
-    res.status(200).json({ success: "The Phone has been Verified." })
-    adminData.adminverified.phone=true;
-    
-    await adminData.save()
+    res.status(200).json({ success: "The Phone has been Verified." });
+    adminData.adminverified.phone = true;
+
+    await adminData.save();
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Internel Server Error" });
   }
-})
+});
 
-router.post("/login",(req,res)=>{
+router.post("/login", async (req, res) => {
   try {
-    
+    let { email, password } = req.body;
+
+    let emailFind = await adminModel.findOne({ email: email });
+    console.log(emailFind);
+
+    if (!emailFind) {
+      return res.status(400).json({ msg: "Pls Register" });
+    }
+
+    let checkPassword = await bcrpyt.compare(password, emailFind.password);
+    if (!checkPassword) {
+      return res.status(400).json({ msg: "Incoorect Password" });
+    }
+
+    //JWT token sign
+    let jwtsignToken = jwt.sign({ email: email }, config.get("JWTKEY"), {
+      expiresIn: "1h",
+    });
+
+    //hashing jwt token
+    let encryptedToken = CryptoJS.AES.encrypt(
+      jwtsignToken,
+      config.get("CRYPTOKEY")
+    ).toString();
+
+    if (!encryptedToken) {
+      return res.status(400).json({ msg: "Token Expire" });
+    }
+
+    res.status(200).json({ msg: "Logged In Sucessfully", encryptedToken });
   } catch (error) {
-    
+    console.log(error);
+    res.status(500).json({ sucess: false, msg: "Internel Server Error" });
   }
-})
+});
 
 // //Delete All Admins
 // router.delete("/delete-all", async (req, res) => {
@@ -143,24 +191,24 @@ router.post("/login",(req,res)=>{
 // });
 
 // //Update Admin by ID
-// router.put("/update/:id", async (req, res) => {
-//   try {
-//     let { id } = req.params;
-//     let updateData = req.body;
-//     // let getadminData = await adminModel.findOneAndUpdate(id,{$set:updateData},{new:true})
-//     let getadminData = await adminModel.findByIdAndUpdate(id, updateData);
+router.put("/update/:id", async (req, res) => {
+  try {
+    let { id } = req.params;
+    let updateData = req.body;
+    // let getadminData = await adminModel.findOneAndUpdate(id,{$set:updateData},{new:true})
+    let getadminData = await adminModel.findByIdAndUpdate(id, updateData);
 
-//     if (!getadminData) {
-//       return res.status(404).json({ error: "Admin Not found" });
-//     }
-//     res.status(200).json({ msg: "Admin Updated Sucessfully" });
-//   } catch (error) {
-//     res.status(500).json({ msg: "Internel Server Error" });
-//   }
-// });
+    if (!getadminData) {
+      return res.status(404).json({ error: "Admin Not found" });
+    }
+    res.status(200).json({ msg: "Admin Updated Sucessfully" });
+  } catch (error) {
+    res.status(500).json({ msg: "Internel Server Error" });
+  }
+});
 
 // //Get All Admin
-router.get("/all", async (req, res) => {
+router.get("/getall", authMiddleware, async (req, res) => {
   try {
     let adminData = await adminModel.find({});
     res.status(500).json(adminData);

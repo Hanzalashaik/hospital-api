@@ -6,6 +6,7 @@ import adminRouter from "./controllers/Admin/index.js";
 import doctorRouter from "./controllers/Doctor/index.js";
 import nurseRouter from "./Nurse/index.js";
 import patientRouter from "./controllers/Patient/index.js";
+// import authMiddleware from "./middleware/authMiddleware.js";
 
 const PORT = config.get("PORT");
 const app = express();
@@ -15,6 +16,8 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.status(200).send("Hello Server is Running 🚀");
 });
+
+// app.use(authMiddleware)
 
 app.use("/admin", adminRouter);
 app.use("/doctor", doctorRouter);
